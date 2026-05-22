@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TaxiCall - Panel Taxista</title>
+    <style>
+        /* ESTILOS EN ESCALA DE GRISES DE ALTO CONTRASTE */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #121212;
+            color: #E0E0E0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Cabecera del Panel */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #2C2C2C;
+            margin-bottom: 15px;
+        }
+
+        header h1 {
+            font-size: 1.4rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #FFFFFF;
+        }
+
+        .status-badge {
+            background-color: #2E7D32; /* Verde discreto de conectado */
+            color: #FFFFFF;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* Contenedor Principal de la Lista */
+        .lista-clientes {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 20px;
+        }
+
+        /* Tarjeta de Cliente Esperando */
+        .tarjeta-cliente {
+            background-color: #1E1E1E;
+            border: 2px solid #333333;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            animation: entrar 0.3s ease-out;
+        }
+
+        /* Animación para alertar visualmente un nuevo cliente */
+        .tarjeta-cliente.nueva {
+            border-color: #FFFFFF;
+            animation: pulso-alerta 1.5s infinite alternate;
+        }
+
+        .info-cliente {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-width: 65%;
+        }
+
+        .zona-cliente {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #FFFFFF;
+        }
+
+        .detalles-cliente {
+            font-size: 0.9rem;
+            color: #A0A0A0;
+            line-height: 1.2;
+        }
+
+        .tiempo-espera {
+            font-size: 0.8rem;
+            color: #757575;
+            margin-top: 2px;
+        }
+
+        /* Botón de Aceptación Gigante (Tocar y listo) */
+        .btn-aceptar {
+            background-color: #FFFFFF;
+            color: #000000;
+            border: none;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: background-color 0.1s ease;
+        }
+
+        .btn-aceptar:active {
+            background-color: #B3B3B3;
+        }
+
+        /* Lista Vacía */
+        .sin-clientes {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666666;
+            text-align: center;
+            gap: 10px;
+        }
+
+        .sin-clientes-icono {
+            font-size: 3rem;
+        }
+
+        /* ANIMACIONES */
+        @keyframes entrar {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulso-alerta {
+            0% { box-shadow: 0 0 4px rgba(255,255,255,0.2); border-color: #444444; }
+            100% { box-shadow: 0 0 15px rgba(255,255,255,0.6); border-color: #FFFFFF; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>TaxiCall</h1>
+            <div style="font-size: 0.8rem; color: #888;">Panel de Control</div>
+        </div>
+        <div class="status-badge" id="estado">En Línea</div>
+    </header>
+
+    <!-- Lista de solicitudes activas -->
+    <div class="lista-clientes" id="contenedor-lista">
+        <!-- El estado inicial está vacío, se llena con JS -->
+        <div class="sin-clientes" id="vista-vacia">
+            <div class="sin-clientes-icono">📭</div>
+            <p>No hay clientes esperando en tu zona.<br>Mantén la pantalla abierta.</p>
+        </div>
+    </div>
+
+    <script>
+        // Simulación de datos en tiempo real (Lo que vendría de Firebase)
+        let clientesEsperando = [
+            { id: "v1", zona: "Plaza de los Pinos", info: "1 pasajero • Destino: Aeropuerto", tiempo: "Hace 1 min", nuevo: true },
+            { id: "v2", zona: "Puerto Local", info: "3 pasajeros • Con maletas", tiempo: "Hace 3 min", nuevo: false }
+        ];
+
+        const contenedor = document.getElementById('contenedor-lista');
+        const vistaVacia = document.getElementById('vista-vacia');
+
+        // Función para renderizar la lista en pantalla
+        function renderizarClientes() {
+            // Limpiar contenido previo manteniendo la vista vacía si aplica
+            const tarjetasActivas = contenedor.querySelectorAll('.tarjeta-cliente');
+            tarjetasActivas.forEach(t => t.remove());
+
+            if (clientesEsperando.length === 0) {
+                vistaVacia.style.display = 'flex';
+                return;
+            }
+
+            vistaVacia.style.display = 'none';
+
+            clientesEsperando.forEach(cliente => {
+                const tarjeta = document.createElement('div');
+                tarjeta.className = `tarjeta-cliente ${cliente.nuevo ? 'nueva' : ''}`;
+                tarjeta.id = `cliente-${cliente.id}`;
+
+                tarjeta.innerHTML = `
+                    <div class="info-cliente">
+                        <div class="zona-cliente">${cliente.zona}</div>
+                        <div class="detalles-cliente">${cliente.info}</div>
+                        <div class="tiempo-espera">${cliente.tiempo}</div>
+                    </div>
+                    <button class="btn-aceptar" onclick="aceptarViaje('${cliente.id}')">Aceptar</button>
+                `;
+
+                contenedor.appendChild(tarjeta);
+            });
+        }
+
+        // Lógica de "Un solo toque" para quedarse el viaje
+        function aceptarViaje(id) {
+            // En producción: Aquí se enviaría la orden a Firebase ("viaje_asignado_a_mi_licencia")
+            alert(`Viaje aceptado. Dirígete al punto de recogida.`);
+            
+            // Eliminamos al cliente de la lista local inmediatamente
+            clientesEsperando = clientesEsperando.filter(c => c.id !== id);
+            renderizarClientes();
+        }
+
+        // Simulación: Añadir un cliente nuevo automáticamente a los 5 segundos para probar el efecto visual
+        setTimeout(() => {
+            clientesEsperando.unshift({
+                id: "v3",
+                zona: "Zona Hotelera Centro",
+                info: "2 pasajeros • Urgente",
+                tiempo: "Ahora mismo",
+                nuevo: true
+            });
+            renderizarClientes();
+        }, 5000);
+
+        // Inicializar la vista
+        renderizarClientes();
+    </script>
+</body>
+</html>
